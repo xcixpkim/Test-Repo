@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'">
+<title>익명 게시판</title>
+<style>
+  :root { --bg:#fff; --text:#1d1c1d; --muted:#616061; --line:#e8e8e8; --hover:#f8f8f8; --input:#fff; --accent:#007a5a; --link:#1264a3; --danger:#e01e5a;
+          --side:#3f0e40; --side-text:#cdb8cf; --side-hover:#350d36; --side-on:#1164a3; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1a1d21; --text:#d1d2d3; --muted:#9a9b9e; --line:#35383d; --hover:#222529; --input:#222529;
+          --side:#19171d; --side-text:#b5b0b8; --side-hover:#222029; --link:#5bb1ee; --danger:#ff5c8a; } }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html, body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--text); font:15px/1.46 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; overflow:hidden; -webkit-text-size-adjust:100%; }
+  button { font:inherit; cursor:pointer; }
+  :focus-visible { outline:2px solid var(--link); outline-offset:1px; }
+
+  .app { display:grid; grid-template-columns:260px 1fr; height:100vh; height:100dvh; }
+  /* ---- 사이드바 ---- */
+  .side { background:var(--side); color:var(--side-text); display:flex; flex-direction:column; overflow-y:auto; padding-top:env(safe-area-inset-top); min-height:0; }
+  .ws { padding:14px 16px; font-weight:900; font-size:18px; color:#fff; border-bottom:1px solid rgba(255,255,255,.14); }
+  .sec { padding:14px 16px 4px; font-size:13px; font-weight:700; opacity:.8; }
+  .ch { display:flex; align-items:center; gap:6px; width:100%; padding:5px 16px; color:var(--side-text); background:none; border:0; text-align:left; text-decoration:none; }
+  .ch:hover { background:var(--side-hover); } .ch.on { background:var(--side-on); color:#fff; }
+  .tip { padding:4px 16px; font-size:13px; line-height:1.55; opacity:.85; }
+  .side .foot { margin-top:auto; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .scrim { display:none; }
+  /* ---- 메인 ---- */
+  .main { display:flex; flex-direction:column; min-width:0; min-height:0; height:100%; }
+  .top { display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 16px 10px; border-bottom:1px solid var(--line); }
+  .top .t1 { font-weight:900; font-size:17px; white-space:nowrap; } .top .t2 { color:var(--muted); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #menuBtn { display:none; background:none; border:0; color:var(--text); font-size:22px; padding:2px 6px; margin-left:-6px; }
+  .pane { flex:1; display:flex; flex-direction:column; min-height:0; }
+  .feed, .panel { flex:1; overflow-y:auto; overscroll-behavior:contain; padding:8px 0; }
+  .inner { max-width:960px; margin:0 auto; padding:0 8px; }
+  .panel { padding:16px; }
+  /* ---- 메시지 ---- */
+  .more { display:block; margin:8px auto; background:none; border:1px solid var(--line); border-radius:999px; color:var(--link); padding:5px 16px; font-size:13px; }
+  .day { display:flex; align-items:center; margin:14px 8px 6px; }
+  .day::before, .day::after { content:""; flex:1; border-top:1px solid var(--line); }
+  .day span { border:1px solid var(--line); border-radius:999px; padding:2px 12px; margin:0 8px; font-size:12px; font-weight:700; background:var(--bg); }
+  .msg { display:flex; gap:10px; padding:8px 12px; position:relative; border-radius:6px; }
+  .msg:hover { background:var(--hover); }
+  .av { flex:none; width:36px; height:36px; border-radius:6px; color:#fff; display:grid; place-items:center; font-weight:700; }
+  .body { min-width:0; flex:1; }
+  .nick { font-weight:900; } .nick i { font-style:normal; font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:6px; }
+  time { color:var(--muted); font-size:12px; margin-left:8px; }
+  .ttl { font-weight:700; word-break:break-word; } .txt { white-space:pre-wrap; word-break:break-word; }
+  .tools { display:none; position:absolute; right:12px; top:-14px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:2px; box-shadow:0 1px 4px #0002; }
+  .msg:hover .tools, .msg:focus-within .tools { display:flex; }
+  .tool { background:none; border:0; color:var(--muted); font-size:13px; padding:3px 9px; border-radius:6px; }
+  .tool:hover { background:var(--hover); color:var(--text); } .tool.del:hover { color:var(--danger); }
+  .empty { text-align:center; color:var(--muted); padding:48px 16px; }
+  .err { color:var(--danger); font-size:14px; }
+  /* ---- 작성창 ---- */
+  .composer { padding:0 12px calc(12px + env(safe-area-inset-bottom)); }
+  .cwrap { max-width:960px; margin:0 auto; }
+  .cbox { border:1px solid #8d8d8d66; border-radius:10px; background:var(--input); padding:6px 10px 8px; }
+  .cbox:focus-within { border-color:#8d8d8d; box-shadow:0 0 0 3px #1264a333; }
+  .cbox input, .cbox textarea { border:0; outline:0; background:transparent; color:inherit; font:inherit; width:100%; padding:6px 4px; }
+  .crow { display:flex; gap:8px; border-bottom:1px solid var(--line); margin-bottom:2px; }
+  #nickname { flex:0 0 34%; max-width:180px; border-right:1px solid var(--line) !important; } #title { flex:1; min-width:0; }
+  .cbox textarea { resize:none; min-height:44px; max-height:160px; display:block; }
+  .hp { position:absolute !important; left:-9999px !important; width:1px !important; height:1px !important; opacity:0; }
+  .cfoot { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .count { color:var(--muted); font-size:12px; } .hint { color:var(--muted); font-size:12px; margin:4px 4px 0; }
+  .send { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:7px 16px; font-weight:700; } .send:hover { filter:brightness(.92); } .send:disabled { opacity:.5; cursor:default; }
+  /* ---- 관리자 ---- */
+  .card { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px; background:var(--bg); }
+  .bar { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center; }
+  .panel input, .panel select { border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:var(--input); color:inherit; font:inherit; min-width:0; }
+  .bar button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:8px 14px; font-weight:700; }
+  .row { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .t { font-weight:700; word-break:break-word; } .b { white-space:pre-wrap; word-break:break-word; margin:4px 0; } .m { color:var(--muted); font-size:12px; word-break:break-all; }
+  .acts { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; } .tag { color:var(--danger); font-size:12px; margin-left:6px; }
+  button.s { background:none; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:4px 10px; font-size:13px; } button.s.d { color:var(--danger); }
+  .side .lo { background:none; border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:6px; padding:6px 12px; width:100%; }
+
+  /* ---- 태블릿 ---- */
+  @media (max-width:1023px) { .app { grid-template-columns:220px 1fr; } .hint { display:none; } }
+  /* ---- 모바일: 사이드바는 슬라이드 메뉴 ---- */
+  @media (max-width:767px) {
+    .app { grid-template-columns:1fr; }
+    .side { position:fixed; inset:0 auto 0 0; width:min(84vw,300px); transform:translateX(-100%); transition:transform .2s; z-index:30; }
+    .open .side { transform:none; box-shadow:4px 0 24px #0006; }
+    .scrim { position:fixed; inset:0; background:#0007; z-index:20; } .open .scrim { display:block; }
+    #menuBtn { display:block; } .top .t2 { display:none; }
+    .cbox input, .cbox textarea, .panel input, .panel select { font-size:16px; }   /* iOS 확대 방지 */
+    .msg { padding:8px 8px; gap:8px; } .tools { right:6px; } .composer { padding:0 8px calc(8px + env(safe-area-inset-bottom)); }
+    #nickname { flex-basis:38%; }
+  }
+  /* 터치 기기: 호버가 없으므로 도구를 항상 표시 */
+  @media (hover:none) { .tools { display:flex; position:static; border:0; box-shadow:none; background:none; padding:0; margin:2px 0 0 -9px; } }
+  @media (max-height:480px) and (orientation:landscape) { .cbox textarea { min-height:32px; } .top { padding-top:6px; padding-bottom:6px; } }
+  @media (prefers-reduced-motion:reduce) { .side { transition:none; } }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="scrim" id="scrim"></div>
+
+  <aside class="side" id="side" aria-label="메뉴">
+    <div class="ws">💬 익명 게시판</div>
+    <div id="sidePub">
+      <div class="sec">채널</div>
+      <a class="ch on" href="#"><span>#</span> 익명게시판</a>
+      <div class="sec">이용 안내</div>
+      <div class="tip">• 닉네임은 비워도 돼요.<br>• 내 글은 이 브라우저에서만 삭제할 수 있어요.<br>• 신고가 3건 쌓이면 글이 자동으로 숨겨져요.<br>• 링크는 2개까지 넣을 수 있어요.</div>
+    </div>
+    <div id="sideAdm" hidden>
+      <div class="sec">관리자</div>
+      <button class="ch" data-t="posts"><span>#</span> 글-관리</button>
+      <button class="ch" data-t="ips"><span>#</span> 차단-ip</button>
+      <button class="ch" data-t="words"><span>#</span> 금칙어</button>
+      <a class="ch" href="#">← 게시판으로</a>
+    </div>
+    <div class="foot"><button class="lo" id="aLogout" hidden>로그아웃</button></div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <button id="menuBtn" aria-label="메뉴 열기">☰</button>
+      <span class="t1" id="topTitle"># 익명게시판</span><span class="t2" id="topSub">익명으로 자유롭게 이야기해요</span>
+    </header>
+
+    <!-- 공개 게시판 -->
+    <section id="pub" class="pane">
+      <div class="feed" id="feed">
+        <div class="inner">
+          <button id="moreBtn" class="more" hidden>이전 메시지 더 보기</button>
+          <div id="msgs" role="log" aria-live="polite"><div class="empty">불러오는 중…</div></div>
+        </div>
+      </div>
+      <div class="composer"><div class="cwrap">
+        <div class="cbox">
+          <div class="crow"><input id="nickname" placeholder="닉네임(선택)" maxlength="20" autocomplete="off" aria-label="닉네임"><input id="title" placeholder="제목" maxlength="100" autocomplete="off" aria-label="제목"></div>
+          <textarea id="content" rows="2" placeholder="# 익명게시판에 메시지 보내기" maxlength="2000" aria-label="내용"></textarea>
+          <input id="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <p id="formErr" class="err" role="alert" hidden></p>
+          <div class="cfoot"><span class="count" id="count">0 / 2000</span><button id="submitBtn" class="send">전송 ➤</button></div>
+        </div>
+        <div class="hint">Ctrl/⌘ + Enter 로 전송</div>
+      </div></div>
+    </section>
+
+    <!-- 관리자 (주소 뒤에 #admin) -->
+    <section id="adm" class="pane" hidden>
+      <div class="panel"><div class="inner">
+        <div id="aLogin" class="card" hidden>
+          <div class="bar"><input id="email" type="email" placeholder="이메일" autocomplete="username"><input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password"><button id="aLoginBtn">로그인</button></div>
+          <div id="aLoginErr" class="err"></div>
+        </div>
+        <div id="aMain" hidden></div>
+      </div></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+  // ▼ 본인 값으로 교체 (공개용 키만 사용! service_role / secret 키는 절대 넣지 마세요)
+  const SUPABASE_URL = "https://cpyyplktmfdjwtmrruwt.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_vdJ4B-6aCfQBSLXoYLBajA_0AimlCHS";
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  /* ---------- 공통 UI: 모바일 메뉴 ---------- */
+  const closeMenu = () => $("app").classList.remove("open");
+  $("menuBtn").onclick = () => $("app").classList.toggle("open");
+  $("scrim").onclick = closeMenu;
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+  const setTop = (a, b) => { $("topTitle").textContent = a; $("topSub").textContent = b || ""; };
+
+  if (SUPABASE_URL.includes("YOUR-PROJECT")) {
+    $("msgs").innerHTML = '<div class="empty">HTML 상단의 SUPABASE_URL / SUPABASE_ANON_KEY를 설정해주세요.</div>';
+    $("submitBtn").disabled = true;
+    throw new Error("Supabase 설정 필요");
+  }
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  let _adb = null;   // 관리자용 클라이언트는 #admin 화면에서 처음 필요할 때만 생성 (저장소 분리)
+  const getAdb = () => _adb ||= supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth:{ storageKey:"board-admin-auth" } });
+
+  /* =================== 공개 게시판 =================== */
+  const PAGE = 20, OPENED = Date.now();
+  const ERR = {
+    rate_limit_short: "너무 빠르게 작성하고 있어요. 30초 뒤에 다시 시도해주세요.",
+    rate_limit_hour: "1시간에 등록할 수 있는 글 수(10개)를 초과했어요.",
+    too_many_links: "링크는 최대 2개까지만 넣을 수 있어요.",
+    banned_word: "사용할 수 없는 단어가 포함되어 있어요.",
+    duplicate: "이미 등록한 내용과 동일해요.",
+    rate_limit_ip: "이 네트워크에서 너무 많은 글이 등록되었어요. 잠시 후 다시 시도해주세요.",
+    ip_blocked: "현재 이 네트워크에서는 글을 작성할 수 없어요."
+  };
+  const showErr = t => { const e = $("formErr"); e.textContent = t || ""; e.hidden = !t; };
+  const friendly = m => { for (const k in ERR) if ((m || "").includes(k)) return ERR[k]; return "요청에 실패했어요. 잠시 후 다시 시도해주세요."; };
+  let page = 0, busy = false, items = [], hasMore = false;
+
+  const hasSession = async () => !!(await db.auth.getSession()).data.session;
+  const hue = n => { let h = 0; for (const c of n) h = (h * 31 + c.codePointAt(0)) % 360; return h; };
+  const tFmt = iso => new Date(iso).toLocaleTimeString("ko-KR", { hour:"numeric", minute:"2-digit" });
+  function dayLabel(iso) {
+    const d = new Date(iso), n = new Date(), y = new Date(n); y.setDate(n.getDate() - 1);
+    const k = x => x.getFullYear() * 10000 + x.getMonth() * 100 + x.getDate();
+    if (k(d) === k(n)) return "오늘"; if (k(d) === k(y)) return "어제";
+    return d.toLocaleDateString("ko-KR", { year: d.getFullYear() !== n.getFullYear() ? "numeric" : undefined, month:"long", day:"numeric", weekday:"short" });
+  }
+  function msgHtml(p) {
+    const nick = p.nickname || "익명";
+    return `<div class="msg" data-id="${p.id}"><div class="av" style="background:hsl(${hue(nick)} 45% 42%)">${esc([...nick][0])}</div>
+      <div class="body"><div><span class="nick">${esc(nick)}${p.mine ? "<i>나</i>" : ""}</span><time>${tFmt(p.created_at)}</time></div>
+      <div class="ttl">${esc(p.title)}</div><div class="txt">${esc(p.content)}</div>
+      <div class="tools">${p.mine ? '<button class="tool del">🗑 삭제</button>' : '<button class="tool rep">🚩 신고</button>'}</div></div></div>`;
+  }
+  // mode: bottom(맨 아래로) / keep(이전 글 추가 시 위치 유지) / stay(보던 위치 유지, 맨 아래였다면 따라감)
+  function render(mode) {
+    const f = $("feed"), prevH = f.scrollHeight, prevTop = f.scrollTop, near = prevH - prevTop - f.clientHeight < 80;
+    let html = "", last = "";
+    for (const p of items.slice().reverse()) {
+      const d = dayLabel(p.created_at);
+      if (d !== last) { html += `<div class="day"><span>${d}</span></div>`; last = d; }
+      html += msgHtml(p);
+    }
+    $("msgs").innerHTML = html || '<div class="empty">아직 메시지가 없어요.<br>첫 메시지를 남겨보세요! 👋</div>';
+    $("moreBtn").hidden = !hasMore;
+    if (mode === "bottom" || (mode === "stay" && near)) f.scrollTop = f.scrollHeight;
+    else if (mode === "keep") f.scrollTop = prevTop + (f.scrollHeight - prevH);
+    else f.scrollTop = prevTop;
+  }
+  const cols = "id,nickname,title,content,created_at,mine";
+  async function loadLatest(mode = "stay") {
+    page = 0;
+    const { data, error } = await db.from("posts_view").select(cols).order("created_at", { ascending:false }).range(0, PAGE - 1);
+    if (error) { if (!items.length) $("msgs").innerHTML = '<div class="empty err">메시지를 불러오지 못했어요.</div>'; return; }
+    items = data; hasMore = data.length === PAGE; render(mode);
+  }
+  async function loadOlder() {
+    page++;
+    const { data, error } = await db.from("posts_view").select(cols).order("created_at", { ascending:false }).range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) { page--; return; }
+    items = items.concat(data); hasMore = data.length === PAGE; render("keep");
+  }
+  $("moreBtn").onclick = loadOlder;
+  const fit = () => { const t = $("content"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 160) + "px"; };
+  $("content").addEventListener("input", e => { $("count").textContent = e.target.value.length + " / 2000"; fit(); });
+  $("content").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $("submitBtn").click(); } });
+
+  async function ensureSession() {
+    if (await hasSession()) return true;
+    const { error } = await db.auth.signInAnonymously();
+    if (error) {
+      console.error("signInAnonymously 실패:", error.status, error.code, error.message);
+      showErr(error.code === "anonymous_provider_disabled"
+        ? "설정 필요: Supabase의 Authentication > Sign In / Providers에서 Anonymous sign-ins를 켜주세요."
+        : /captcha/i.test(error.message + (error.code || ""))
+        ? "설정 필요: Supabase의 CAPTCHA 보호가 켜져 있어요. Attack Protection에서 꺼주세요."
+        : "인증에 실패했어요. 잠시 후 다시 시도해주세요.");
+      return false;
+    }
+    return true;
+  }
+
+  $("submitBtn").addEventListener("click", async () => {
+    if (busy) return;
+    showErr("");
+    const title = $("title").value.trim(), content = $("content").value.trim(), nickname = $("nickname").value.trim();
+    if ($("website").value) return;                                   // 허니팟
+    if (!title || !content) return showErr("제목과 내용을 입력해주세요.");
+    if (Date.now() - OPENED < 3000) return showErr("잠시 후 다시 시도해주세요.");
+    busy = true; $("submitBtn").disabled = true;
+    try {
+      if (!(await ensureSession())) return;
+      const { error } = await db.from("posts").insert({ nickname, title, content });
+      if (error) return showErr(friendly(error.message));
+      $("title").value = ""; $("content").value = ""; $("count").textContent = "0 / 2000"; fit();
+      await loadLatest("bottom");
+    } finally { busy = false; $("submitBtn").disabled = false; }
+  });
+
+  $("msgs").addEventListener("click", async e => {
+    const m = e.target.closest(".msg"); if (!m) return;
+    const id = Number(m.dataset.id);
+    if (e.target.closest(".del")) {
+      if (!confirm("이 글을 삭제할까요? 되돌릴 수 없습니다.")) return;
+      const { data, error } = await db.from("posts").delete().eq("id", id).select("id");
+      if (error || !data?.length) alert("삭제하지 못했어요. 이 브라우저에서 작성한 글만 삭제할 수 있어요.");
+      else { items = items.filter(x => x.id !== id); render("stay"); }
+    } else if (e.target.closest(".rep")) {
+      if (!confirm("이 글을 신고할까요?")) return;
+      if (!(await ensureSession())) { alert($("formErr").textContent || "인증이 필요해요."); return; }
+      const { error } = await db.from("reports").insert({ post_id: id });
+      alert(!error ? "신고가 접수되었어요." : error.code === "23505" ? "이미 신고한 글이에요." : "신고에 실패했어요.");
+      if (!error && page === 0) loadLatest("stay");
+    }
+  });
+
+  /* =================== 관리자 =================== */
+  const FAIL = '<div class="empty err">불러오지 못했어요. 권한과 SQL 설정을 확인해주세요.</div>';
+  const afmt = iso => new Date(iso).toLocaleString("ko-KR");
+  const TITLES = { posts:"# 글-관리", ips:"# 차단-ip", words:"# 금칙어" };
+  let tab = "posts", filter = "all";
+
+  async function aboot() {
+    const { data:{ session } } = await getAdb().auth.getSession();
+    if (!session) return showLogin();
+    const { data, error } = await getAdb().from("admins").select("user_id").maybeSingle();
+    if (error || !data) {
+      console.error("관리자 확인 실패:", error?.code, error?.message, "user id:", session.user.id);
+      await getAdb().auth.signOut();
+      return showLogin(error
+        ? "관리자 정보를 읽지 못했어요(" + (error.code || error.message) + "). setup.sql이 끝까지 실행됐는지 확인하세요."
+        : "이 계정(" + session.user.id + ")은 admins 테이블에 등록되어 있지 않아요.");
+    }
+    $("aLogin").hidden = true; $("aMain").hidden = false; $("aLogout").hidden = false; ashow();
+  }
+  function showLogin(m) {
+    $("aMain").hidden = true; $("aLogin").hidden = false; $("aLogout").hidden = true;
+    $("aLoginErr").textContent = m || ""; setTop("# 관리자", "로그인이 필요해요");
+  }
+  $("aLoginBtn").onclick = async () => {
+    const { error } = await getAdb().auth.signInWithPassword({ email:$("email").value.trim(), password:$("pw").value });
+    if (error) return showLogin("로그인에 실패했어요.");
+    $("pw").value = ""; aboot();
+  };
+  $("aLogout").onclick = async () => { await getAdb().auth.signOut(); closeMenu(); showLogin(); };
+  $("sideAdm").onclick = e => { const b = e.target.closest("[data-t]"); if (b) { closeMenu(); ashow(b.dataset.t); } };
+
+  async function ashow(t) {
+    tab = t || tab; setTop(TITLES[tab], "관리자 전용");
+    document.querySelectorAll("#sideAdm [data-t]").forEach(b => b.classList.toggle("on", b.dataset.t === tab));
+    $("aMain").innerHTML = '<div class="empty">불러오는 중…</div>';
+    await ({ posts:vPosts, ips:vIps, words:vWords })[tab]();
+  }
+
+  async function vPosts() {
+    let q = getAdb().from("admin_posts_view").select("*").order("created_at", { ascending:false }).limit(100);
+    if (filter === "rep") q = q.gt("report_count", 0);
+    if (filter === "hid") q = q.eq("hidden", true);
+    const { data, error } = await q;
+    if (error) return $("aMain").innerHTML = FAIL;
+    $("aMain").innerHTML = `<div class="bar"><select id="flt" aria-label="필터">
+      <option value="all">전체</option><option value="rep">신고된 글</option><option value="hid">숨김 글</option></select></div>` +
+      (data.length ? data.map(p => `<div class="card" data-id="${p.id}" data-ip="${esc(p.ip)}">
+        <div class="t">${esc(p.title)}${p.hidden ? '<span class="tag">숨김</span>' : ""}${p.report_count ? `<span class="tag">신고 ${p.report_count}</span>` : ""}</div>
+        <div class="b">${esc(p.content)}</div>
+        <div class="m">${esc(p.nickname)} · ${afmt(p.created_at)} · IP ${esc(p.ip || "알 수 없음")}</div>
+        <div class="acts"><button class="s" data-a="${p.hidden ? "show" : "hide"}">${p.hidden ? "복원" : "숨김"}</button>
+          <button class="s d" data-a="del">삭제</button>${p.ip ? '<button class="s d" data-a="block">IP 차단</button>' : ""}</div></div>`).join("")
+        : '<div class="empty">글이 없습니다.</div>');
+    $("flt").value = filter; $("flt").onchange = e => { filter = e.target.value; ashow(); };
+  }
+
+  async function vIps() {
+    const { data, error } = await getAdb().from("blocked_ips").select("*").order("created_at", { ascending:false });
+    if (error) return $("aMain").innerHTML = FAIL;
+    $("aMain").innerHTML = `<div class="card"><div class="bar"><input id="nip" placeholder="IP 또는 대역 (예: 1.2.3.4, 1.2.3.0/24)">
+      <input id="nh" type="number" min="1" placeholder="시간(비우면 영구)" style="width:150px"><input id="nr" placeholder="사유">
+      <button id="addIp">차단</button></div></div>` +
+      (data.map(r => `<div class="card row" data-id="${r.id}"><div><div class="t">${esc(r.cidr)}</div>
+        <div class="m">${esc(r.reason || "-")} · ${r.expires_at ? "해제 " + afmt(r.expires_at) : "영구"}</div></div>
+        <button class="s d" data-a="unblock">해제</button></div>`).join("") || '<div class="empty">차단된 IP가 없습니다.</div>');
+    $("addIp").onclick = async () => {
+      const ip = $("nip").value.trim(); if (!ip) return;
+      const h = $("nh").value;
+      const { error } = await getAdb().rpc("admin_block_ip", { p_ip:ip, p_hours:h ? Number(h) : null, p_reason:$("nr").value.trim() || null, p_purge:false });
+      if (error) alert("차단 실패: 형식을 확인해주세요. (대역은 1.2.3.0/24처럼 네트워크 주소여야 합니다)"); else ashow();
+    };
+  }
+
+  async function vWords() {
+    const { data, error } = await getAdb().from("banned_words").select("word").order("word");
+    if (error) return $("aMain").innerHTML = FAIL;
+    $("aMain").innerHTML = `<div class="card"><div class="bar"><input id="nw" placeholder="금칙어"><button id="addW">추가</button></div></div>` +
+      (data.map(r => `<div class="card row" data-w="${esc(r.word)}"><span>${esc(r.word)}</span><button class="s d" data-a="delw">삭제</button></div>`).join("") || '<div class="empty">금칙어가 없습니다.</div>');
+    $("addW").onclick = async () => {
+      const w = $("nw").value.trim(); if (!w) return;
+      const { error } = await getAdb().from("banned_words").insert({ word:w });
+      if (error) alert("추가하지 못했어요. 이미 있는 단어일 수 있어요."); else ashow();
+    };
+  }
+
+  $("aMain").onclick = async e => {
+    const a = e.target.dataset.a, card = e.target.closest(".card"); if (!a || !card) return;
+    const id = Number(card.dataset.id); let r;
+    if (a === "hide" || a === "show") r = await getAdb().from("posts").update({ hidden:a === "hide" }).eq("id", id);
+    else if (a === "del") { if (!confirm("이 글을 삭제할까요?")) return; r = await getAdb().from("posts").delete().eq("id", id); }
+    else if (a === "block") {
+      const h = prompt("차단 시간(시간 단위). 비워두면 영구 차단", ""); if (h === null) return;
+      const purge = confirm("이 IP가 쓴 기존 글도 모두 삭제할까요?");
+      r = await getAdb().rpc("admin_block_ip", { p_ip:card.dataset.ip, p_hours:h ? Number(h) : null, p_reason:"글 관리에서 차단", p_purge:purge });
+    }
+    else if (a === "unblock") r = await getAdb().from("blocked_ips").delete().eq("id", id);
+    else if (a === "delw") r = await getAdb().from("banned_words").delete().eq("word", card.dataset.w);
+    if (r?.error) alert("작업에 실패했어요."); else ashow();
+  };
+
+  /* =================== 화면 전환 (#admin) =================== */
+  let adminBooted = false;
+  function route() {
+    const isAdmin = location.hash === "#admin";
+    $("pub").hidden = isAdmin; $("adm").hidden = !isAdmin;
+    $("sidePub").hidden = isAdmin; $("sideAdm").hidden = !isAdmin;
+    closeMenu();
+    document.title = isAdmin ? "게시판 관리자" : "익명 게시판";
+    if (isAdmin) { setTop("# 관리자", ""); if (!adminBooted) { adminBooted = true; aboot(); } else if (!$("aMain").hidden) ashow(); }
+    else { setTop("# 익명게시판", "익명으로 자유롭게 이야기해요"); loadLatest("bottom"); }
+  }
+  window.addEventListener("hashchange", route);
+  route();
+  setInterval(() => { if (!document.hidden && !$("pub").hidden && page === 0 && !busy) loadLatest("stay"); }, 30000);
+</script>
+</body>
+</html>
