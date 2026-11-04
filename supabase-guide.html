@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>프론트엔드 개발자를 위한 Supabase 입문 가이드북 (2026-11-04 기준)</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1f2328;--mut:#5b6470;--card:#fff;--bd:#e2ded5;--ac:#1f9d6b;--ac2:#e8f6ef;--warn:#fff4e0;--warnb:#e6a23c;--bad:#fdecec;--code:#14181f;--codefg:#e6edf3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--fg:#e6e9ee;--mut:#98a2b0;--card:#1c2027;--bd:#2d333d;--ac:#3ecf8e;--ac2:#16302a;--warn:#33291a;--warnb:#c58a2e;--bad:#3a1f20;--code:#0b0d11;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14171c;--fg:#e6e9ee;--mut:#98a2b0;--card:#1c2027;--bd:#2d333d;--ac:#3ecf8e;--ac2:#16302a;--warn:#33291a;--warnb:#c58a2e;--bad:#3a1f20;--code:#0b0d11;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:1.9rem;line-height:1.3;margin:.2em 0}h2{margin:2.2em 0 .4em;padding-top:.6em;border-top:2px solid var(--bd);font-size:1.4rem}h3{margin:1.4em 0 .3em;font-size:1.1rem}
+.sub{color:var(--mut)}
+.box{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin:14px 0}
+.new{background:var(--ac2);border-color:var(--ac)}.warn{background:var(--warn);border-color:var(--warnb)}
+.tag{display:inline-block;background:var(--ac);color:#fff;border-radius:99px;padding:0 10px;font-size:.78rem;font-weight:700;margin-right:6px}
+pre{background:var(--code);color:var(--codefg);padding:14px;border-radius:10px;overflow-x:auto;font:13.5px/1.6 ui-monospace,Menlo,Consolas,monospace;margin:10px 0}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em;background:var(--ac2);padding:1px 5px;border-radius:5px}pre code{background:none;padding:0}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:520px;font-size:.93rem}th,td{border:1px solid var(--bd);padding:8px 10px;text-align:left;vertical-align:top}th{background:var(--ac2)}
+nav ol{columns:2;column-gap:24px;margin:0;padding-left:20px}nav a{color:var(--ac)}
+label{display:block;margin:8px 0 2px;font-size:.88rem;color:var(--mut)}
+select,input[type=text],input[type=number]{width:100%;max-width:340px;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer;margin-top:10px}
+.row{display:flex;gap:16px;flex-wrap:wrap}.row>div{flex:1 1 230px}
+.out{white-space:pre-wrap;word-break:break-word}
+.chk label{display:flex;gap:8px;align-items:flex-start;color:var(--fg);font-size:1rem;margin:6px 0}
+</style>
+</head>
+<body>
+<main>
+<p><span class="tag">2026-11-04 기준</span><span class="sub">공식 문서·changelog·요금 페이지 확인 결과</span></p>
+<h1>프론트엔드 개발자를 위한 Supabase 입문 가이드북</h1>
+<p class="sub">백엔드를 한 번도 안 해봤어도 괜찮아요. “서버 없이 DB와 로그인을 쓰는 법”을 코드 복붙 → 모의 실습 → 실제 연결 순서로 배웁니다.</p>
+
+<nav class="box"><strong>목차</strong><ol>
+<li><a href="#s0">2026년 꼭 알아야 할 변경점</a></li><li><a href="#s1">Supabase가 뭔가요?</a></li><li><a href="#s2">프로젝트 만들기</a></li><li><a href="#s3">API 키 이해하기</a></li>
+<li><a href="#s4">첫 테이블 + 권한 SQL</a></li><li><a href="#s5">React(Vite) 연결</a></li><li><a href="#s6">CRUD 치트시트</a></li><li><a href="#s7">로그인(Auth)</a></li>
+<li><a href="#lab1">실습 1: 쿼리 빌더</a></li><li><a href="#lab2">실습 2: 권한·RLS 시뮬레이터</a></li><li><a href="#s9">자주 만나는 에러</a></li><li><a href="#s10">체크리스트·참고 링크</a></li></ol></nav>
+
+<h2 id="s0">0. 2026년 꼭 알아야 할 변경점</h2>
+<p>블로그·영상 강의는 대부분 예전 방식을 알려줍니다. 아래 4가지는 <strong>최신 공식 자료 기준</strong>이니 옛 튜토리얼과 다르면 이쪽을 따르세요.</p>
+<div class="box new">
+<p><strong>① API 키 이름이 바뀌었어요.</strong> 예전 <code>anon</code> / <code>service_role</code> 대신 <code>sb_publishable_...</code>(공개용) / <code>sb_secret_...</code>(서버 전용)을 씁니다. 공식 changelog는 레거시 키 삭제 시점을 “2026년 말(확정 아님)”로 안내했으니, 예전 키로 만든 프로젝트는 미리 옮겨 두세요.</p>
+<p><strong>② 새 테이블이 자동으로 API에 노출되지 않아요.</strong> 공식 changelog(2026-04-28 공지)에 따르면 새 프로젝트는 2026-05-30부터, 기존 프로젝트는 2026-10-30부터 <code>public</code> 스키마의 <em>새</em> 테이블에 <code>GRANT</code>를 직접 줘야 supabase-js로 보입니다. 안 주면 <code>42501 permission denied</code> 에러가 납니다. 기존 테이블은 그대로 동작합니다. (본인 프로젝트에 적용됐는지는 대시보드/공지 메일에서 확인하세요.)</p>
+<p><strong>③ 무료 플랜 한도(2026년 요금 페이지 기준).</strong> 프로젝트 2개, DB 500MB, 월 활성 사용자 50,000명, 파일 저장소 1GB, 송신 5GB, 그리고 <strong>1주일 동안 활동이 없으면 자동 일시정지</strong>. 포트폴리오용으로 충분하지만, 면접 직전에 프로젝트가 잠들어 있지 않은지 꼭 확인하세요. 유료 Pro는 월 $25부터입니다.</p>
+<p><strong>④ 서버 쪽 로그인 확인은 <code>getClaims()</code>를 권장</strong>하는 흐름입니다. 브라우저만 쓰는 입문 단계에서는 <code>getSession()</code>/<code>onAuthStateChange</code>로 충분하지만, “권한 판단의 근거”로는 쓰면 안 된다는 것만 기억하세요.</p>
+</div>
+
+<h2 id="s1">1. Supabase가 뭔가요?</h2>
+<p>식당에 비유해 볼게요. 프론트엔드는 <strong>홀(손님이 보는 화면)</strong>, 백엔드는 <strong>주방(재료 보관·조리·계산)</strong>입니다. 직접 주방을 지으려면 서버, DB, 로그인 시스템이 필요하죠. Supabase는 “이미 지어진 주방”을 빌려 주는 서비스(BaaS)입니다.</p>
+<div class="wrap"><table><tr><th>기능</th><th>역할</th><th>프론트에서 쓰는 모습</th></tr>
+<tr><td>Database</td><td>진짜 PostgreSQL(표 형태 데이터 저장)</td><td><code>supabase.from('todos').select()</code></td></tr>
+<tr><td>Auth</td><td>회원가입·로그인·소셜 로그인</td><td><code>supabase.auth.signInWithPassword()</code></td></tr>
+<tr><td>Storage</td><td>이미지·파일 저장</td><td><code>supabase.storage.from('avatars').upload()</code></td></tr>
+<tr><td>Realtime</td><td>데이터 변경을 실시간 수신</td><td><code>supabase.channel('room').on(...)</code></td></tr>
+<tr><td>Edge Functions</td><td>비밀 키가 필요한 서버 코드</td><td><code>supabase.functions.invoke()</code></td></tr></table></div>
+<p><strong>핵심 질문:</strong> “브라우저에서 DB를 직접 부르면 아무나 내 데이터를 보는 거 아냐?” → 그래서 <strong>RLS(행 단위 보안)</strong>와 <strong>GRANT(테이블 접근 권한)</strong>가 있습니다. 이 가이드북의 절반은 이 두 가지를 이해하는 데 씁니다.</p>
+
+<h2 id="s2">2. 프로젝트 만들기 (설정 방법)</h2>
+<ol>
+<li><strong>supabase.com</strong> 접속 → <em>Start your project</em> → GitHub 계정으로 로그인.</li>
+<li>조직(Organization)을 만들고 <em>New project</em> 클릭.</li>
+<li>프로젝트 이름 입력, <strong>Database Password</strong>는 비밀번호 관리자에 저장(나중에 직접 쓸 일은 적지만 분실하면 재설정해야 함).</li>
+<li>Region은 한국에서 가까운 <strong>Northeast Asia (Seoul)</strong> 선택.</li>
+<li>Data API 관련 옵션에 <em>Automatically expose new tables</em> 체크박스가 보이면, 입문 단계에서는 <strong>체크 해제(권장 기본값)</strong> 상태로 두고 이 가이드북의 GRANT 습관을 익히는 편이 안전합니다.</li>
+<li>생성에 1~2분 걸립니다. 완료되면 상단 <strong>Connect</strong> 버튼에서 <em>Project URL</em>과 <em>Publishable key</em>를 확인합니다.</li></ol>
+<p class="sub">※ 대시보드 메뉴 이름·위치는 수시로 바뀝니다. 이름이 조금 달라도 같은 기능을 찾으면 됩니다.</p>
+
+<h2 id="s3">3. API 키 이해하기</h2>
+<div class="wrap"><table><tr><th>키</th><th>접두사</th><th>어디에 쓰나</th><th>브라우저에 넣어도?</th></tr>
+<tr><td>Publishable</td><td><code>sb_publishable_</code></td><td>React 등 클라이언트 코드</td><td>가능 (권한은 RLS가 통제)</td></tr>
+<tr><td>Secret</td><td><code>sb_secret_</code></td><td>서버, Edge Function, 배치 작업</td><td><strong>절대 금지</strong> (RLS를 우회)</td></tr>
+<tr><td>(레거시) anon / service_role</td><td>긴 JWT 문자열</td><td>각각 publishable / secret의 구버전</td><td>anon만 가능</td></tr></table></div>
+<p>키 위치: 대시보드 <em>Settings → API Keys</em>. 로그인 전 요청은 <code>anon</code> 역할, 로그인 후에는 <code>authenticated</code> 역할로 DB에 접근하며, 이 역할이 뒤의 GRANT/RLS 판단 기준이 됩니다.</p>
+<div class="box warn"><strong>실무에서도 통하는 필수 습관:</strong> secret 키를 GitHub에 올리면 즉시 폐기(재발급)해야 합니다. 프론트 코드에는 URL + publishable 키만 넣으세요.</div>
+
+<h2 id="s4">4. 첫 테이블 + 권한 SQL</h2>
+<p>대시보드 왼쪽 <em>SQL Editor</em>에 붙여 넣고 <em>Run</em>. “내 할 일(todos)” 테이블입니다.</p>
+<pre><code>-- 1) 테이블 만들기
+create table public.todos (
+  id bigint primary key generated always as identity,
+  user_id uuid not null default auth.uid() references auth.users(id),
+  title text not null,
+  done boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- 2) RLS 켜기 (켜는 순간 정책이 없으면 아무도 못 읽음)
+alter table public.todos enable row level security;
+
+-- 3) 2026년 방식: 로그인한 사용자에게만 테이블 권한 부여
+grant select, insert, update, delete on public.todos to authenticated;
+
+-- 4) 정책: 내 행만 읽고 쓰기
+create policy "내 할 일만" on public.todos
+  for all to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);</code></pre>
+<p><strong>한 줄 요약:</strong> GRANT = “이 역할이 테이블 문을 열 수 있나?” / RLS 정책 = “열 수 있다면 어떤 행까지 보이나?” 두 관문을 <em>모두</em> 통과해야 데이터가 나옵니다.</p>
+
+<h2 id="s5">5. React(Vite) 연결</h2>
+<pre><code>npm create vite@latest my-app -- --template react
+cd my-app
+npm install @supabase/supabase-js</code></pre>
+<p>프로젝트 루트에 <code>.env.local</code> 파일을 만듭니다. (<code>.gitignore</code>에 포함되어 있는지 확인!)</p>
+<pre><code>VITE_SUPABASE_URL=https://xxxxxxxx.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxx</code></pre>
+<p><code>src/lib/supabaseClient.js</code>:</p>
+<pre><code>import { createClient } from '@supabase/supabase-js'
+
+export const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+)</code></pre>
+<p>데이터를 화면에 띄우는 최소 예제(<code>App.jsx</code>):</p>
+<pre><code>import { useEffect, useState } from 'react'
+import { supabase } from './lib/supabaseClient'
+
+export default function App() {
+  const [todos, setTodos] = useState([])
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    supabase.from('todos').select('*').order('id').then(({ data, error }) => {
+      if (error) setError(error.message)
+      else setTodos(data)
+    })
+  }, [])
+
+  if (error) return &lt;p&gt;에러: {error}&lt;/p&gt;
+  return &lt;ul&gt;{todos.map(t =&gt; &lt;li key={t.id}&gt;{t.title}&lt;/li&gt;)}&lt;/ul&gt;
+}</code></pre>
+<p><code>npm run dev</code> 후 <code>localhost:5173</code>. 로그인 전이라면 빈 목록이 정상입니다(다음 장에서 로그인 추가).</p>
+
+<h2 id="s6">6. CRUD 치트시트</h2>
+<p>supabase-js는 항상 <code>{ data, error }</code>를 돌려줍니다. <strong>예외를 던지지 않으니 error를 꼭 확인</strong>하세요.</p>
+<div class="wrap"><table><tr><th>하고 싶은 일</th><th>코드</th></tr>
+<tr><td>조회</td><td><code>.from('todos').select('*')</code></td></tr>
+<tr><td>조건·정렬·개수</td><td><code>.eq('done', false).order('id', { ascending: false }).limit(10)</code></td></tr>
+<tr><td>추가</td><td><code>.insert({ title: '공부하기' }).select()</code></td></tr>
+<tr><td>수정</td><td><code>.update({ done: true }).eq('id', 1).select()</code></td></tr>
+<tr><td>삭제</td><td><code>.delete().eq('id', 1).select()</code></td></tr></table></div>
+<p>수정·삭제에 <code>.eq()</code> 같은 조건이 없으면 “전체 삭제” 사고를 막기 위해 거절됩니다. 또한 RLS 때문에 <em>내 행이 아니면 에러 없이 0건 처리</em>될 수 있다는 점이 입문자가 가장 헷갈리는 부분입니다.</p>
+
+<h2 id="s7">7. 로그인(Auth)</h2>
+<pre><code>// 회원가입
+const { data, error } = await supabase.auth.signUp({ email, password })
+
+// 로그인
+const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+// 로그아웃
+await supabase.auth.signOut()
+
+// 로그인 상태 구독 (React useEffect 안에서)
+const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) =&gt; {
+  setUser(session?.user ?? null)
+})
+return () =&gt; subscription.unsubscribe()</code></pre>
+<div class="box warn"><strong>실습 팁:</strong> 이메일 인증이 기본으로 켜져 있어 가입 직후 로그인이 안 될 수 있습니다. 대시보드 <em>Authentication</em> 설정에서 연습용으로만 인증을 끄거나, 인증 메일을 확인하세요. 기본 메일 발송은 시간당 횟수 제한이 매우 낮은 것으로 알려져 있어(약 2통/시간, 변동 가능) 연습 중 429 오류가 나면 이 때문일 수 있고, 실서비스는 별도 SMTP 연결이 필요합니다.</div>
+
+<h2 id="lab1">실습 1: 쿼리 빌더 (모의)</h2>
+<p>진짜 Supabase 없이 브라우저 안의 가짜 <code>todos</code> 표로 연습합니다. 옵션을 고르면 supabase-js 코드가 만들어지고 결과(<code>data</code>)가 나옵니다.</p>
+<div class="box">
+<div class="row"><div><label for="op">동작</label><select id="op"><option>select</option><option>insert</option><option>update</option><option>delete</option></select></div>
+<div><label for="f1">select: 완료 여부 필터</label><select id="f1"><option value="">전체</option><option value="true">done = true</option><option value="false">done = false</option></select></div></div>
+<div class="row"><div><label for="ttl">insert/update 제목</label><input type="text" id="ttl" value="포트폴리오 완성"></div>
+<div><label for="tid">update/delete 대상 id (비우면 조건 없음)</label><input type="number" id="tid" value="2"></div></div>
+<button id="run1">실행</button>
+<h3>생성된 코드</h3><pre><code class="out" id="code1">(실행을 눌러 보세요)</code></pre>
+<h3>결과</h3><pre><code class="out" id="res1"></code></pre>
+<button id="reset1" style="background:var(--mut)">표 초기화</button></div>
+
+<h2 id="lab2">실습 2: 권한·RLS 시뮬레이터</h2>
+<p>“왜 빈 배열이 나오지?”, “왜 permission denied?”를 직접 재현합니다. 아래 표(alice 2건, bob 1건)를 조회한다고 가정합니다.</p>
+<div class="box"><div class="row">
+<div><label for="usr">누가 요청하나요?</label><select id="usr"><option value="anon">로그인 안 함 (anon)</option><option value="alice">alice 로그인</option><option value="bob">bob 로그인</option></select></div>
+<div class="chk"><label><input type="checkbox" id="gr" checked> GRANT select to anon, authenticated</label>
+<label><input type="checkbox" id="rls" checked> RLS 켜기 (enable row level security)</label>
+<label><input type="checkbox" id="pol" checked> 정책: 내 행만 (to authenticated)</label></div></div>
+<button id="run2">조회 실행</button>
+<h3>결과</h3><pre><code class="out" id="res2"></code></pre><p id="why2"></p></div>
+<p><strong>도전 과제:</strong> ① RLS를 끄고 anon으로 조회해 보세요(왜 위험할까요?) ② 정책을 끄고 alice로 조회해 보세요(빈 배열은 왜?) ③ GRANT를 끄면 어떤 에러가 나나요?</p>
+
+<h2 id="s9">9. 자주 만나는 에러</h2>
+<div class="wrap"><table><tr><th>증상</th><th>원인</th><th>해결</th></tr>
+<tr><td><code>42501 permission denied for table ...</code></td><td>GRANT 누락 (2026 변경점 ②)</td><td><code>grant select ... on public.테이블 to authenticated;</code></td></tr>
+<tr><td>에러는 없는데 <code>data: []</code></td><td>RLS 켜짐 + 정책 없음/불일치, 또는 로그인 전</td><td>정책 확인, 로그인 상태 확인</td></tr>
+<tr><td>insert 시 <code>new row violates row-level security</code></td><td><code>with check</code> 조건 불일치</td><td><code>user_id</code>가 내 uid인지 확인</td></tr>
+<tr><td><code>Invalid API key</code></td><td>키 오타, .env 변수명 오류, 개발 서버 미재시작</td><td>변수명 <code>VITE_</code> 접두사 확인 후 재시작</td></tr>
+<tr><td>갑자기 연결 안 됨</td><td>무료 프로젝트 1주 비활성 일시정지</td><td>대시보드에서 Restore</td></tr>
+<tr><td>429 / 이메일 안 옴</td><td>기본 메일 발송 한도</td><td>잠시 후 재시도, SMTP 연결</td></tr></table></div>
+
+<h2 id="s10">10. 체크리스트와 참고 링크</h2>
+<div class="box chk"><strong>내 프로젝트 점검</strong>
+<label><input type="checkbox"> publishable 키만 프론트에 사용했다 (secret 키 없음)</label>
+<label><input type="checkbox"> .env.local이 .gitignore에 들어 있다</label>
+<label><input type="checkbox"> 모든 테이블에 RLS를 켰고 정책을 테스트했다</label>
+<label><input type="checkbox"> 필요한 테이블에만 GRANT를 줬다 (anon에는 꼭 필요한 것만)</label>
+<label><input type="checkbox"> 모든 호출에서 error를 처리한다</label>
+<label><input type="checkbox"> 면접 전에 프로젝트가 일시정지 상태가 아닌지 확인했다</label></div>
+<p><strong>다음 단계:</strong> ① 할 일 앱에 로그인·CRUD 붙이기 → ② Storage로 프로필 이미지 → ③ Realtime으로 실시간 목록 → ④ Edge Function으로 secret 키가 필요한 로직 분리.</p>
+<h3>공식 자료 (최신 내용은 여기서 재확인)</h3>
+<ul>
+<li>API 키: supabase.com/docs/guides/getting-started/api-keys</li>
+<li>새 키로 이전: supabase.com/docs/guides/getting-started/migrating-to-new-api-keys</li>
+<li>React 퀵스타트: supabase.com/docs/guides/getting-started/quickstarts/reactjs</li>
+<li>테이블 자동 노출 변경 공지: supabase.com/changelog (글 번호 45329)</li>
+<li>요금: supabase.com/pricing</li></ul>
+<p class="sub">이 가이드북은 2026-11-04에 확인한 공개 자료를 바탕으로 합니다. 요금·한도·메뉴 이름은 바뀔 수 있으니 실제 적용 전 공식 페이지를 확인하세요.</p>
+</main>
+<script>
+(function(){
+var seed=[{id:1,title:"HTML 복습",done:true},{id:2,title:"React 훅 공부",done:false},{id:3,title:"Supabase 연결",done:false}];
+var rows=JSON.parse(JSON.stringify(seed)),next=4,$=function(i){return document.getElementById(i)};
+function show(el,o){el.textContent=typeof o==="string"?o:JSON.stringify(o,null,2)}
+$("run1").onclick=function(){
+  var op=$("op").value,f=$("f1").value,t=$("ttl").value||"새 할 일",id=$("tid").value,c="",r;
+  var q="const { data, error } = await supabase\n  .from('todos')";
+  if(op==="select"){
+    c=q+"\n  .select('*')"+(f?"\n  .eq('done', "+f+")":"")+"\n  .order('id')";
+    r={data:rows.filter(function(x){return !f||String(x.done)===f}),error:null};
+  }else if(op==="insert"){
+    c=q+"\n  .insert({ title: '"+t+"' })\n  .select()";
+    var n={id:next++,title:t,done:false};rows.push(n);r={data:[n],error:null};
+  }else{
+    var tail=(op==="update"?"\n  .update({ title: '"+t+"' })":"\n  .delete()")+(id?"\n  .eq('id', "+id+")":"")+"\n  .select()";
+    c=q+tail;
+    if(!id){r={data:null,error:{message:op.toUpperCase()+" requires a WHERE clause (조건 없는 수정/삭제는 거절됩니다)"}}}
+    else{var hit=rows.filter(function(x){return x.id==id});
+      if(op==="update")hit.forEach(function(x){x.title=t});else rows=rows.filter(function(x){return x.id!=id});
+      r={data:hit,error:null}}
+  }
+  show($("code1"),c+"\n\nif (error) console.error(error)");show($("res1"),r);
+};
+$("reset1").onclick=function(){rows=JSON.parse(JSON.stringify(seed));next=4;show($("code1"),"(초기화됨)");show($("res1"),"")};
+var data2=[{id:1,owner:"alice",title:"alice의 메모 A"},{id:2,owner:"alice",title:"alice의 메모 B"},{id:3,owner:"bob",title:"bob의 비밀 메모"}];
+$("run2").onclick=function(){
+  var u=$("usr").value,g=$("gr").checked,rl=$("rls").checked,p=$("pol").checked,res,why;
+  if(!g){res={data:null,error:{code:"42501",message:"permission denied for table notes"}};why="GRANT 관문에서 차단됐어요. RLS를 보기도 전에 실패합니다."}
+  else if(!rl){res={data:data2,error:null};why="⚠️ RLS가 꺼져 있어 모든 사람이 모든 행을 봅니다. 가장 위험한 설정이에요."}
+  else if(!p||u==="anon"){res={data:[],error:null};why=!p?"RLS는 켜졌는데 허용 정책이 없어 아무 행도 안 보입니다(에러 없이 빈 배열).":"정책이 authenticated 전용이라 로그인 전(anon)에는 빈 배열입니다."}
+  else{res={data:data2.filter(function(x){return x.owner===u}),error:null};why="정책 조건 auth.uid() = user_id 에 맞는 "+u+"의 행만 보입니다."}
+  show($("res2"),res);$("why2").textContent="→ "+why;
+};
+})();
+</script>
+</body>
+</html>
